@@ -1,0 +1,81 @@
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\ProductosAPI.csproj.AssemblyReference.cache
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\rpswa.dswa.cache.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\ProductosAPI.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\ProductosAPI.AssemblyInfoInputs.cache
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\ProductosAPI.AssemblyInfo.cs
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\ProductosAPI.csproj.CoreCompileInputs.cache
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\ProductosAPI.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\appsettings.Development.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\appsettings.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\ProductosAPI.staticwebassets.endpoints.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\ProductosAPI.exe
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\ProductosAPI.deps.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\ProductosAPI.runtimeconfig.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\ProductosAPI.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\ProductosAPI.pdb
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Abstractions.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\Microsoft.IdentityModel.JsonWebTokens.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Logging.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Tokens.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\bin\Debug\net10.0\System.IdentityModel.Tokens.Jwt.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\rjimswa.dswa.cache.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\rjsmrazor.dswa.cache.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\rjsmcshtml.dswa.cache.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\scopedcss\bundle\ProductosAPI.styles.css
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\staticwebassets.build.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\staticwebassets.build.json.cache
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\staticwebassets.development.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\staticwebassets.build.endpoints.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\swae.build.ex.cache
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\Producto.5CEC0815.Up2Date
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\ProductosAPI.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\refint\ProductosAPI.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\ProductosAPI.pdb
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\ProductosAPI.genruntimeconfig.cache
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\FULL SERVICE copy\ProductosAPI\obj\Debug\net10.0\ref\ProductosAPI.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\appsettings.Development.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\appsettings.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\ProductosAPI.staticwebassets.endpoints.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\ProductosAPI.exe
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\ProductosAPI.deps.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\ProductosAPI.runtimeconfig.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\ProductosAPI.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\ProductosAPI.pdb
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Abstractions.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\Microsoft.IdentityModel.JsonWebTokens.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Logging.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Tokens.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\Microsoft.OpenApi.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\Swashbuckle.AspNetCore.Swagger.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\Swashbuckle.AspNetCore.SwaggerGen.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\Swashbuckle.AspNetCore.SwaggerUI.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\bin\Debug\net10.0\System.IdentityModel.Tokens.Jwt.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\ProductosAPI.csproj.AssemblyReference.cache
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\rpswa.dswa.cache.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\ProductosAPI.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\ProductosAPI.AssemblyInfoInputs.cache
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\ProductosAPI.AssemblyInfo.cs
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\ProductosAPI.csproj.CoreCompileInputs.cache
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\ProductosAPI.MvcApplicationPartsAssemblyInfo.cs
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\ProductosAPI.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\rjimswa.dswa.cache.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\rjsmrazor.dswa.cache.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\rjsmcshtml.dswa.cache.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\scopedcss\bundle\ProductosAPI.styles.css
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\staticwebassets.build.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\staticwebassets.build.json.cache
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\staticwebassets.development.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\staticwebassets.build.endpoints.json
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\swae.build.ex.cache
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\Producto.5CEC0815.Up2Date
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\ProductosAPI.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\refint\ProductosAPI.dll
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\ProductosAPI.pdb
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\ProductosAPI.genruntimeconfig.cache
+C:\Users\kev77\Documents\ITQ\10°S\SOA\PROGRAMS\COMPLETADO_SERVICIO\ProductosAPI\obj\Debug\net10.0\ref\ProductosAPI.dll

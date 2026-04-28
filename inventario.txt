@@ -1,0 +1,4 @@
+id_producto|cantidad|precio
+1|11|4500
+2|20|2500
+3|15|350

@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  clientes:
+    build: . 
+    container_name: ms_clientes
+    command: uvicorn clientes:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./clientes.txt:/app/clientes.txt 
+
+  inventario:
+    build: .
+    container_name: ms_inventario
+    command: uvicorn inventario:app --host 0.0.0.0 --port 8003
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./inventario.txt:/app/inventario.txt
+
+  pedidos:
+    build: .
+    container_name: ms_pedidos
+    command: uvicorn pedidos:app --host 0.0.0.0 --port 8004
+    ports:
+      - "8004:8004"
+    volumes:
+      - ./pedidos.txt:/app/pedidos.txt
+
+  productos:
+    build: ./ProductosAPI # Apunta a la subcarpeta donde está el Dockerfile de C#
+    container_name: ms_productos
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./productos.txt:/app/productos.txt
+
+  worker:
+    build: .
+    container_name: worker_pedidos
+    command: python worker.py

@@ -1,0 +1,5 @@
+id_cliente|nombre|correo|telefono
+1|Kevin Hernández|kevo1283@gmail.com|442444514
+2|Oscar Hernandez|oscar11a45s@gmail.com|55555555
+3|Manuel German Hernandez Jimenez|manuelgee@gmail.com|123456789
+4|Luis Arturo|lartuuur4513@gmail.com|9876543210

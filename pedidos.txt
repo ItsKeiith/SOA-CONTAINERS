@@ -1,0 +1,6 @@
+id_pedido|id_producto|cantidad|id_cliente|estado
+1|1|1|4|COMPLETADO
+2|3|5|2|RECHAZADO
+3|1|2|99|COMPLETADO
+5|1|1|1|COMPLETADO
+4|1|1|1|COMPLETADO

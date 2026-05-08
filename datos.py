@@ -4,7 +4,7 @@ class Cliente(BaseModel):
     id_cliente: int 
     nombre: str
     correo: EmailStr
-    telefono: int
+    telefono: str
 
 class Producto(BaseModel):
     id_producto: int

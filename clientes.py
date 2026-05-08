@@ -32,19 +32,19 @@ class Cliente(BaseModel):
     nombre: str
     correo: EmailStr
     direccion: str
-    telefono: int
+    telefono: str
     activo: bool = True
 
 class ClienteUpdate(BaseModel):
     nombre: Optional[str] = None
     correo: Optional[EmailStr] = None
     direccion: Optional[str] = None
-    telefono: Optional[int] = None
+    telefono: Optional[str] = None
     activo: Optional[bool] = None
 
 class LoginData(BaseModel):
     correo: str
-    telefono: int
+    telefono: str
 
 # --- FUNCIONES DE BASE DE DATOS Y UTILIDADES ---
 def obtener_conexion():

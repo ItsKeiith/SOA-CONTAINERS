@@ -89,7 +89,7 @@ def iniciar_sesion(credenciales: LoginData):
     conn = obtener_conexion()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT * FROM HK_Login(%s, %s);", (credenciales.correo, credenciales.telefono))
+            cur.execute("SELECT * FROM KHC_Login(%s, %s);", (credenciales.correo, credenciales.telefono))
             cliente_valido = cur.fetchone()
             
             if not cliente_valido:
@@ -105,7 +105,7 @@ def obtener_clientes():
     conn = obtener_conexion()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT * FROM HK_Clientes_Obtener();")
+            cur.execute("SELECT * FROM KHC_Clientes_Obtener();")
             return cur.fetchall()
     finally:
         conn.close()
@@ -121,7 +121,7 @@ def registrar_cliente(nuevo_cliente: Cliente):
                 raise HTTPException(status_code=400, detail="Identificador de cliente duplicado.")
             
             cur.execute(
-                "CALL HK_Clientes_Agregar(%s, %s, %s, %s, %s, %s);", 
+                "CALL KHC_Clientes_Agregar(%s, %s, %s, %s, %s, %s);", 
                 (nuevo_cliente.id_cliente, nuevo_cliente.nombre, nuevo_cliente.correo, nuevo_cliente.direccion, nuevo_cliente.telefono, nuevo_cliente.activo)
             )
             conn.commit()
@@ -144,7 +144,7 @@ def eliminar_cliente(id_cliente: int):
                 raise HTTPException(status_code=404, detail="Recurso no encontrado en la base de datos")
             
             # Ejecución de baja lógica
-            cur.execute("CALL HK_Clientes_Eliminar(%s);", (id_cliente,))
+            cur.execute("CALL KHC_Clientes_Eliminar(%s);", (id_cliente,))
             conn.commit()
             
             publicar_evento_cliente("cliente_eliminado", {"id_cliente": id_cliente})
@@ -165,7 +165,7 @@ def actualizar_cliente(id_cliente: int, datos_nuevos: ClienteUpdate):
                 raise HTTPException(status_code=404, detail="Recurso no encontrado en la base de datos")
             
             cur.execute(
-                "CALL HK_Clientes_Actualizar(%s, %s, %s, %s, %s, %s);", 
+                "CALL KHC_Clientes_Actualizar(%s, %s, %s, %s, %s, %s);", 
                 (id_cliente, datos_nuevos.nombre, datos_nuevos.correo, datos_nuevos.direccion, datos_nuevos.telefono, datos_nuevos.activo)
             )
             conn.commit()

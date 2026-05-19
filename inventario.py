@@ -1,163 +1,108 @@
-from fastapi import FastAPI, HTTPException
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
-from typing import List, Optional
-import requests
-from datos import Inventario, db_inventario 
+import jwt
 
-app = FastAPI(title="Microservicio de inventario", version="2.0")
+app = FastAPI(title="Microservicio de Inventario", version="3.0")
 
-URL_PRODUCTOS = "http://inventario:8002"
+# --- CONFIGURACIÓN DE SEGURIDAD JWT ---
+SECRET_KEY = "secret_password_login_super_segura_32"
+ALGORITHM = "HS256"
+security = HTTPBearer()
 
-# --- MODELOS ---
-class OrdenDescuento(BaseModel):
-    cantidad: int
+# URL para el botón "Authorize" en Swagger (Puedes cambiarla por la URL de tu servicio de clientes en Render)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="https://clientes-db-fbz3.onrender.com/login")
 
-class InventarioUpdate(BaseModel):
-    cantidad: Optional[int] = Field(None, ge=0, description="El nuevo stock no puede ser negativo")
+def verificar_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expirado.")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido o corrupto.")
 
-class InventarioV2(BaseModel):
+
+# --- CONFIGURACIÓN DE BASE DE DATOS ---
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "postgresql://shopnow_663n_user:mJKZ4Bs3pW5XqeK5c5FLlukVy1TUGEIl@dpg-d7ohmhpj2pic73abp6l0-a.oregon-postgres.render.com/shopnow_663n"
+)
+
+def obtener_conexion():
+    try:
+        return psycopg2.connect(DATABASE_URL)
+    except psycopg2.Error as e:
+        raise HTTPException(status_code=500, detail=f"Error de conexión a la BD: {e}")
+
+# --- MODELOS DE DATOS ---
+class AltaProductoInventario(BaseModel):
     id_producto: int
-    cantidad: int
-    costo_unitario: int
+    descripcion: str
+    precio: float
+    cantidad_inicial: int = Field(ge=0, description="El stock inicial no puede ser negativo")
 
-# --- FUNCIONES AUXILIARES ---
-def guardar_inventario(inventario: List[Inventario]):
-    with open("inventario.txt", "w", encoding="utf-8") as f:
-        f.write("id_producto|cantidad|precio\n")
-        for p in inventario:
-            f.write(f"{p.id_producto}|{p.cantidad}|{p.precio}\n")
+class AgregarStock(BaseModel):
+    cantidad_a_sumar: int = Field(gt=0, description="Debes sumar al menos 1 artículo")
 
-#               VERSIÓN 1 (v1)
+# --- ENDPOINTS (Protegidos con JWT) ---
 
-@app.get("/inventario/v1")
-def obtener_inventario_v1():
-    return db_inventario
-
-@app.post("/inventario/v1")
-def registrar_inventario_v1(nuevo_registro: Inventario):
+@app.get("/inventario", dependencies=[Depends(verificar_token)])
+def consultar_inventario():
+    """Obtiene todo el stock disponible"""
+    conn = obtener_conexion()
     try:
-        resp_productos = requests.get(f"{URL_PRODUCTOS}/productos")
-        if resp_productos.status_code == 200:
-            lista_productos = resp_productos.json()
-            if not any(p["id_producto"] == nuevo_registro.id_producto for p in lista_productos):
-                raise HTTPException(status_code=404, detail="Error: El producto no existe en el catálogo.")
-    except requests.exceptions.ConnectionError:
-        raise HTTPException(status_code=503, detail="El servicio de Productos no responde.")
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM KHC_Inventario_Consultar();")
+            return cur.fetchall()
+    finally:
+        conn.close()
 
-    if any(i.id_producto == nuevo_registro.id_producto for i in db_inventario):
-        raise HTTPException(status_code=400, detail="Error: Ya existe inventario para este producto.")
-        
-    db_inventario.append(nuevo_registro)
-    guardar_inventario(db_inventario)
-    return {"mensaje": "Stock inicial registrado (V1)"}
-
-@app.put("/inventario/v1/descontar/{id_producto}")
-def descontar_stock_v1(id_producto: int, orden: OrdenDescuento):
-    item = next((i for i in db_inventario if i.id_producto == id_producto), None)
-    if not item:
-        raise HTTPException(status_code=404, detail="El producto no tiene stock registrado.")
-    if item.cantidad < orden.cantidad:
-        raise HTTPException(status_code=400, detail=f"Stock insuficiente. Quedan {item.cantidad}.")
-        
-    item.cantidad -= orden.cantidad
-    guardar_inventario(db_inventario) 
-    return {"mensaje": "Stock actualizado tras descuento (V1)", "stock_restante": item.cantidad}
-
-@app.patch("/inventario/v1/{id_producto}")
-def actualizar_inventario_v1(id_producto: int, datos_nuevos: InventarioUpdate):
-    item_actual = next((i for i in db_inventario if i.id_producto == id_producto), None)
-    if not item_actual:
-        raise HTTPException(status_code=404, detail=f"No hay inventario registrado para el producto {id_producto}")
-    if datos_nuevos.cantidad is not None:
-        item_actual.cantidad = datos_nuevos.cantidad
-
-    guardar_inventario(db_inventario)
-    return {"mensaje": "Stock actualizado correctamente (V1)", "datos": item_actual}
-
-@app.delete("/inventario/v1/{id_producto}")
-def eliminar_inventario_v1(id_producto: int):
-    item_a_borrar = next((i for i in db_inventario if i.id_producto == id_producto), None)
-    if not item_a_borrar:
-        raise HTTPException(status_code=404, detail=f"No hay inventario registrado para el producto {id_producto}")
-
-    db_inventario.remove(item_a_borrar)
-    guardar_inventario(db_inventario)
-    return {"mensaje": f"Registro de inventario del producto {id_producto} eliminado exitosamente (V1)"}
-
-#               VERSIÓN 2 (v2)
-
-@app.get("/inventario/v2")
-def obtener_inventario_v2():
-    # Convertimos precio a costo_unitario
-    inventario_v2 = []
-    for item in db_inventario:
-        inventario_v2.append({
-            "id_producto": item.id_producto,
-            "cantidad": item.cantidad,
-            "costo_unitario": item.precio 
-        })
-    return inventario_v2
-
-@app.post("/inventario/v2")
-def registrar_inventario_v2(nuevo_registro: InventarioV2):
+@app.post("/inventario/alta", dependencies=[Depends(verificar_token)])
+def alta_producto_e_inventario(datos: AltaProductoInventario):
+    """Crea el producto en el catálogo y le asigna su inventario inicial (Transacción)"""
+    conn = obtener_conexion()
     try:
-        resp_productos = requests.get(f"{URL_PRODUCTOS}/productos")
-        if resp_productos.status_code == 200:
-            lista_productos = resp_productos.json()
-            if not any(p["id_producto"] == nuevo_registro.id_producto for p in lista_productos):
-                raise HTTPException(status_code=404, detail="Error: El producto no existe en el catálogo.")
-    except requests.exceptions.ConnectionError:
-        raise HTTPException(status_code=503, detail="El servicio de Productos no responde.")
+        with conn.cursor() as cur:
+            # Validar si el producto ya existe en catálogo
+            cur.execute("SELECT id_producto FROM productos WHERE id_producto = %s;", (datos.id_producto,))
+            if cur.fetchone():
+                raise HTTPException(status_code=400, detail="El ID del producto ya existe.")
+            
+            # Ejecutar SP de Alta
+            cur.execute(
+                "CALL KHC_Inventario_Alta(%s, %s, %s, %s);", 
+                (datos.id_producto, datos.descripcion, datos.precio, datos.cantidad_inicial)
+            )
+            conn.commit()
+            return {"mensaje": "Producto creado e inventario asignado correctamente"}
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en la transacción SQL: {e}")
+    finally:
+        conn.close()
 
-    if any(i.id_producto == nuevo_registro.id_producto for i in db_inventario):
-        raise HTTPException(status_code=400, detail="Error: Ya existe inventario para este producto.")
-        
-    registro_bd = Inventario(
-        id_producto=nuevo_registro.id_producto,
-        cantidad=nuevo_registro.cantidad,
-        precio=nuevo_registro.costo_unitario 
-    )
-    
-    db_inventario.append(registro_bd)
-    guardar_inventario(db_inventario)
-    return {"mensaje": "Stock inicial registrado usando costo_unitario (V2)"}
-
-@app.put("/inventario/v2/descontar/{id_producto}")
-def descontar_stock_v2(id_producto: int, orden: OrdenDescuento):
-    item = next((i for i in db_inventario if i.id_producto == id_producto), None)
-    if not item:
-        raise HTTPException(status_code=404, detail="El producto no tiene stock registrado.")
-    if item.cantidad < orden.cantidad:
-        raise HTTPException(status_code=400, detail=f"Stock insuficiente. Quedan {item.cantidad}.")
-        
-    item.cantidad -= orden.cantidad
-    guardar_inventario(db_inventario) 
-    return {"mensaje": "Stock actualizado tras descuento (V2)", "stock_restante": item.cantidad}
-
-@app.patch("/inventario/v2/{id_producto}")
-def actualizar_inventario_v2(id_producto: int, datos_nuevos: InventarioUpdate):
-    item_actual = next((i for i in db_inventario if i.id_producto == id_producto), None)
-    if not item_actual:
-        raise HTTPException(status_code=404, detail=f"No hay inventario registrado para el producto {id_producto}")
-    if datos_nuevos.cantidad is not None:
-        item_actual.cantidad = datos_nuevos.cantidad
-
-    guardar_inventario(db_inventario)
-    
-    datos_v2 = {
-        "id_producto": item_actual.id_producto,
-        "cantidad": item_actual.cantidad,
-        "costo_unitario": item_actual.precio
-    }
-    return {"mensaje": "Stock actualizado correctamente (V2)", "datos": datos_v2}
-
-@app.delete("/inventario/v2/{id_producto}")
-def eliminar_inventario_v2(id_producto: int):
-    # La lógica de borrado es idéntica a la V1
-    item_a_borrar = next((i for i in db_inventario if i.id_producto == id_producto), None)
-    if not item_a_borrar:
-        raise HTTPException(status_code=404, detail=f"No hay inventario registrado para el producto {id_producto}")
-
-    db_inventario.remove(item_a_borrar)
-    guardar_inventario(db_inventario)
-    return {"mensaje": f"Registro de inventario del producto {id_producto} eliminado exitosamente (V2)"}
+@app.patch("/inventario/{id_producto}/agregar", dependencies=[Depends(verificar_token)])
+def agregar_stock(id_producto: int, datos: AgregarStock):
+    """Suma stock al inventario existente de un producto"""
+    conn = obtener_conexion()
+    try:
+        with conn.cursor() as cur:
+            # Validar que el producto exista en el inventario
+            cur.execute("SELECT id_producto FROM inventario WHERE id_producto = %s;", (id_producto,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="El producto no está registrado en el inventario.")
+            
+            # Ejecutar SP para sumar stock
+            cur.execute("CALL KHC_Inventario_AgregarStock(%s, %s);", (id_producto, datos.cantidad_a_sumar))
+            conn.commit()
+            return {"mensaje": f"Se sumaron {datos.cantidad_a_sumar} unidades al producto {id_producto}"}
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en la transacción SQL: {e}")
+    finally:
+        conn.close()

@@ -1,98 +1,122 @@
-from typing import List, Optional
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from fastapi import FastAPI, HTTPException, Depends, status
-from pydantic import BaseModel
-from fastapi.security import OAuth2PasswordBearer
-import requests
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, Field
+from typing import Optional
 import jwt
 
-from datos import Producto, db_productos
+app = FastAPI(title="Microservicio de Productos", version="3.0")
 
-app = FastAPI(title="Microservicio de productos", version="1.0")
-
-URL_INVENTARIO = "http://productos:8003"
-
-# --- CONFIGURACIONES ---
-
+# --- CONFIGURACIÓN DE SEGURIDAD JWT ---
 SECRET_KEY = "secret_password_login_super_segura_32"
 ALGORITHM = "HS256"
+security = HTTPBearer()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="http://clientes:8001/login")
-
-class ProductoUpdate(BaseModel):
-    descripcion: Optional[str] = None
-
-# --- FUNCIONES ---
-
-def guardar_productos(productos_actuales: List[Producto]):
-    with open("productos.txt", "w", encoding="utf-8") as f:
-        f.write("id_producto|descripcion\n")
-        for p in productos_actuales:
-            f.write(f"{p.id_producto}|{p.descripcion}\n")
-
-def verificar_token(token: str = Depends(oauth2_scheme)):
+def verificar_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
     except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail="El token ha expirado. Por favor, inicia sesión de nuevo."
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expirado.")
     except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail="Token inválido o corrupto."
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido o corrupto.")
+
+# --- CONFIGURACIÓN DE BASE DE DATOS ---
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "postgresql://shopnow_663n_user:mJKZ4Bs3pW5XqeK5c5FLlukVy1TUGEIl@dpg-d7ohmhpj2pic73abp6l0-a.oregon-postgres.render.com/shopnow_663n"
+)
+
+def obtener_conexion():
+    try:
+        return psycopg2.connect(DATABASE_URL)
+    except psycopg2.Error as e:
+        raise HTTPException(status_code=500, detail=f"Error de conexión a la BD: {e}")
+
+# --- MODELOS DE DATOS ---
+class ProductoAlta(BaseModel):
+    id_producto: int
+    descripcion: str = Field(..., max_length=100, description="Descripción del artículo")
+    precio: float = Field(..., gt=0, description="El precio debe ser mayor a 0")
+
+class ProductoUpdate(BaseModel):
+    descripcion: Optional[str] = Field(None, max_length=100)
+    precio: Optional[float] = Field(None, gt=0)
+    activo: Optional[bool] = None
+
+# --- ENDPOINTS ---
 
 @app.get("/productos", dependencies=[Depends(verificar_token)])
 def obtener_productos():
-    return db_productos
+    """Consulta general del catálogo de productos"""
+    conn = obtener_conexion()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM KHC_Productos_Consultar();")
+            return cur.fetchall()
+    finally:
+        conn.close()
 
 @app.post("/productos", dependencies=[Depends(verificar_token)])
-def registrar_producto(nuevo_producto: Producto):
-    if any(p.id_producto == nuevo_producto.id_producto for p in db_productos):
-        raise HTTPException(status_code=400, detail="Error (PK): El producto ya existe en el catálogo.")
-    db_productos.append(nuevo_producto)
-    guardar_productos(db_productos) 
-    return {"mensaje": "Producto registrado y guardado"}
+def registrar_producto(datos: ProductoAlta):
+    """Alta de un nuevo producto"""
+    conn = obtener_conexion()
+    try:
+        with conn.cursor() as cur:
+            # Control de duplicados manual para prevenir excepciones de PK
+            cur.execute("SELECT id_producto FROM productos WHERE id_producto = %s;", (datos.id_producto,))
+            if cur.fetchone():
+                raise HTTPException(status_code=400, detail="El ID del producto ya existe en el catálogo.")
+            
+            cur.execute("CALL KHC_Productos_Alta(%s, %s, %s);", (datos.id_producto, datos.descripcion, datos.precio))
+            conn.commit()
+            return {"mensaje": "Producto registrado exitosamente en el catálogo"}
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en la transacción SQL: {e}")
+    finally:
+        conn.close()
 
 @app.patch("/productos/{id_producto}", dependencies=[Depends(verificar_token)])
-def actualizar_producto(id_producto: int, datos_nuevos: ProductoUpdate):
-    producto_actual = next((p for p in db_productos if p.id_producto == id_producto), None)
-    
-    if not producto_actual:
-        raise HTTPException(status_code=404, detail=f"No se encontró el producto con ID {id_producto}")
-    
-    if datos_nuevos.descripcion is not None:
-        producto_actual.descripcion = datos_nuevos.descripcion
-        
-    guardar_productos(db_productos)
-    return {"mensaje": "Producto actualizado correctamente", "datos": producto_actual}
+def modificar_producto(id_producto: int, datos: ProductoUpdate):
+    """Modificación parcial de atributos de un producto"""
+    conn = obtener_conexion()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id_producto FROM productos WHERE id_producto = %s;", (id_producto,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Producto no encontrado en el sistema.")
+            
+            cur.execute(
+                "CALL KHC_Productos_Actualizar(%s, %s, %s, %s);", 
+                (id_producto, datos.descripcion, datos.precio, datos.activo)
+            )
+            conn.commit()
+            return {"mensaje": "Atributos de producto actualizados correctamente"}
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en la transacción SQL: {e}")
+    finally:
+        conn.close()
 
 @app.delete("/productos/{id_producto}", dependencies=[Depends(verificar_token)])
-def eliminar_producto(id_producto: int):
-    producto_a_borrar = next((p for p in db_productos if p.id_producto == id_producto), None)
-    if not producto_a_borrar:
-        raise HTTPException(status_code=404, detail=f"No se encontró el producto con ID {id_producto}")
-
-    # Validar con Inventario
+def dar_baja_producto(id_producto: int):
+    """Baja lógica de un producto del catálogo"""
+    conn = obtener_conexion()
     try:
-        resp_inventario = requests.get(f"{URL_INVENTARIO}/inventario")
-        if resp_inventario.status_code == 200:
-            lista_inventario = resp_inventario.json()
-            # Si el producto tiene stock en el inventario, bloquear borrado
-            if any(i["id_producto"] == id_producto for i in lista_inventario):
-                raise HTTPException(
-                    status_code=400, 
-                    detail="Error de Integridad: No puedes borrar este producto porque tiene stock asignado en el Inventario. Borra su stock primero."
-                )
-    except requests.exceptions.ConnectionError:
-        # Si la ventana del inventario está cerrada, evitar el borrado por seguridad
-        raise HTTPException(
-            status_code=503, 
-            detail="El servicio de Inventario no responde. No es seguro borrar el producto ahora."
-        )
-    db_productos.remove(producto_a_borrar)
-    guardar_productos(db_productos)
-    
-    return {"mensaje": f"Producto {id_producto} eliminado exitosamente y de forma segura"}
+        with conn.cursor() as cur:
+            cur.execute("SELECT id_producto FROM productos WHERE id_producto = %s;", (id_producto,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Producto no encontrado en el sistema.")
+            
+            cur.execute("CALL KHC_Productos_Eliminar(%s);", (id_producto,))
+            conn.commit()
+            return {"mensaje": f"Baja lógica aplicada correctamente al producto {id_producto}"}
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en la transacción SQL: {e}")
+    finally:
+        conn.close()

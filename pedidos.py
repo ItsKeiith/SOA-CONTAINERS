@@ -46,7 +46,6 @@ class Pedido(BaseModel):
     id_cliente: int
     id_producto: int
     cantidad: int = Field(gt=0, description="La cantidad debe ser mayor a 0")
-    # NOTA: Se eliminó 'estado' porque no existe en tu base de datos actual
 
 # --- RABBITMQ ---
 def publicar_pedido_en_cola(datos_pedido: dict):
@@ -65,7 +64,7 @@ def publicar_pedido_en_cola(datos_pedido: dict):
         )
         conexion.close()
     except Exception as e:
-        # No bloqueamos el pedido en BD si Rabbit falla, pero lo notificamos
+        # No bloqueamos el pedido en BD si Rabbit falla, pero lo notificamos en consola
         print(f"[Advertencia] El pedido se guardó en BD, pero RabbitMQ falló: {e}")
 
 # --- ENDPOINTS ---
@@ -88,7 +87,7 @@ def consultar_pedidos():
 
 @app.post("/pedidos", dependencies=[Depends(verificar_token)])
 def registrar_pedido(nuevo_pedido: Pedido):
-    """Registra el pedido en Postgres y lo encola en RabbitMQ"""
+    """Registra el pedido en Postgres, descuenta inventario y lo encola en RabbitMQ"""
     conn = obtener_conexion()
     try:
         with conn.cursor() as cur:
@@ -97,28 +96,38 @@ def registrar_pedido(nuevo_pedido: Pedido):
             if cur.fetchone():
                 raise HTTPException(status_code=400, detail="El ID del pedido ya existe.")
             
-            # 1. Guardar en Base de Datos
+            # 1. Guardar en BD y procesar inventario mediante el SP
             cur.execute(
-                "CALL KHC_Pedidos_Agregar(%s, %s, %s, %s);", 
+                "CALL khc_pedidos_agregar(%s, %s, %s, %s);", 
                 (nuevo_pedido.id_pedido, nuevo_pedido.id_cliente, nuevo_pedido.id_producto, nuevo_pedido.cantidad)
             )
             conn.commit()
             
-            # 2. Publicar evento en RabbitMQ para que el Worker lo procese
+            # 2. Publicar evento en RabbitMQ
             datos_dict = nuevo_pedido.model_dump()
             publicar_pedido_en_cola(datos_dict)
             
             return {
-                "mensaje": "Pedido registrado en BD y encolado en RabbitMQ para su validación.", 
+                "mensaje": "Pedido registrado, inventario descontado y encolado en RabbitMQ exitosamente.", 
                 "datos": datos_dict
             }
             
-    except psycopg2.IntegrityError as e:
+    except psycopg2.IntegrityError:
         conn.rollback()
-        # Si falla una llave foránea (ej. cliente o producto no existen), Postgres lo detecta
         raise HTTPException(status_code=400, detail="Error de Integridad: El cliente o el producto no existen en la base de datos.")
     except psycopg2.Error as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Error en la transacción SQL: {e}")
+        error_pg = str(e)
+        
+        # Interceptar excepciones personalizadas lanzadas desde PL/pgSQL
+        if "ERR_STOCK_INSUFICIENTE" in error_pg:
+            mensaje_limpio = error_pg.split("ERR_STOCK_INSUFICIENTE: ")[-1].split("\n")[0]
+            raise HTTPException(status_code=400, detail=mensaje_limpio)
+        
+        elif "ERR_NO_INVENTARIO" in error_pg:
+            raise HTTPException(status_code=404, detail="El producto solicitado no cuenta con un registro de inventario.")
+            
+        # Para cualquier otro error de base de datos no contemplado
+        raise HTTPException(status_code=500, detail=f"Error transaccional SQL: {error_pg}")
     finally:
         conn.close()

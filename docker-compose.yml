@@ -7,8 +7,9 @@ services:
     command: uvicorn clientes:app --host 0.0.0.0 --port 8001
     ports:
       - "8001:8001"
-    volumes:
-      - ./clientes.txt:/app/clientes.txt 
+    environment:
+      - DATABASE_URL=postgresql://shopnow_663n_user:mJKZ4Bs3pW5XqeK5c5FLlukVy1TUGEIl@dpg-d7ohmhpj2pic73abp6l0-a.oregon-postgres.render.com/shopnow_663n
+      - RABBITMQ_URL=amqps://scenduia:1Hl5xa8q3E7---7IMwY89JFEIS5s9b5Y@duck.lmq.cloudamqp.com/scenduia # Cámbialo por tu URL de CloudAMQP si deseas probar la nube desde local
 
   inventario:
     build: .
@@ -16,8 +17,8 @@ services:
     command: uvicorn inventario:app --host 0.0.0.0 --port 8003
     ports:
       - "8003:8003"
-    volumes:
-      - ./inventario.txt:/app/inventario.txt
+    environment:
+      - DATABASE_URL=postgresql://shopnow_663n_user:mJKZ4Bs3pW5XqeK5c5FLlukVy1TUGEIl@dpg-d7ohmhpj2pic73abp6l0-a.oregon-postgres.render.com/shopnow_663n
 
   pedidos:
     build: .
@@ -25,18 +26,22 @@ services:
     command: uvicorn pedidos:app --host 0.0.0.0 --port 8004
     ports:
       - "8004:8004"
-    volumes:
-      - ./pedidos.txt:/app/pedidos.txt
+    environment:
+      - DATABASE_URL=postgresql://shopnow_663n_user:mJKZ4Bs3pW5XqeK5c5FLlukVy1TUGEIl@dpg-d7ohmhpj2pic73abp6l0-a.oregon-postgres.render.com/shopnow_663n
+      - RABBITMQ_URL=amqps://scenduia:1Hl5xa8q3E7---7IMwY89JFEIS5s9b5Y@duck.lmq.cloudamqp.com/scenduia
 
   productos:
-    build: ./ProductosAPI # Apunta a la subcarpeta donde está el Dockerfile de C#
+    build: . 
     container_name: ms_productos
+    command: uvicorn productos:app --host 0.0.0.0 --port 8002
     ports:
       - "8002:8002"
-    volumes:
-      - ./productos.txt:/app/productos.txt
+    environment:
+      - DATABASE_URL=postgresql://shopnow_663n_user:mJKZ4Bs3pW5XqeK5c5FLlukVy1TUGEIl@dpg-d7ohmhpj2pic73abp6l0-a.oregon-postgres.render.com/shopnow_663n
 
   worker:
     build: .
     container_name: worker_pedidos
     command: python worker.py
+    environment:
+      - RABBITMQ_URL=amqps://scenduia:1Hl5xa8q3E7---7IMwY89JFEIS5s9b5Y@duck.lmq.cloudamqp.com/scenduia

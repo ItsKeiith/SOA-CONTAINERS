@@ -43,8 +43,8 @@ class ClienteUpdate(BaseModel):
     activo: Optional[bool] = None
 
 class LoginData(BaseModel):
-    correo: str
-    telefono: str
+    usuario: str
+    password: str
 
 # --- FUNCIONES DE BASE DE DATOS Y UTILIDADES ---
 def obtener_conexion():
@@ -86,19 +86,17 @@ def verificar_token(credentials: HTTPAuthorizationCredentials = Depends(security
 
 @app.post("/login")
 def iniciar_sesion(credenciales: LoginData):
-    conn = obtener_conexion()
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT * FROM KHC_Login(%s, %s);", (credenciales.correo, credenciales.telefono))
-            cliente_valido = cur.fetchone()
-            
-            if not cliente_valido:
-                raise HTTPException(status_code=401, detail="Credenciales inválidas o usuario inactivo")
-            
-            datos_token = {"sub": cliente_valido["correo"], "id_cliente": cliente_valido["id_cliente"]}
-            return {"access_token": crear_token_acceso(datos_token), "token_type": "bearer"}
-    finally:
-        conn.close()
+    # Validación estricta contra las credenciales establecidas
+    if credenciales.usuario != "admin" or credenciales.password != "admin123":
+        raise HTTPException(status_code=401, detail="Credenciales inválidas o acceso denegado")
+    
+    # Asignación de datos al payload del token JWT
+    datos_token = {
+        "sub": credenciales.usuario, 
+        "rol": "administrador"
+    }
+    
+    return {"access_token": crear_token_acceso(datos_token), "token_type": "bearer"}
 
 @app.get("/clientes", dependencies=[Depends(verificar_token)])
 def obtener_clientes():

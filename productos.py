@@ -38,7 +38,6 @@ def obtener_conexion():
 
 # --- MODELOS DE DATOS ---
 class ProductoAlta(BaseModel):
-    id_producto: int
     descripcion: str = Field(..., max_length=100, description="Descripción del artículo")
     precio: float = Field(..., gt=0, description="El precio debe ser mayor a 0")
 
@@ -62,21 +61,16 @@ def obtener_productos():
 
 @app.post("/productos", dependencies=[Depends(verificar_token)])
 def registrar_producto(datos: ProductoAlta):
-    """Alta de un nuevo producto"""
     conn = obtener_conexion()
     try:
         with conn.cursor() as cur:
-            # Control de duplicados manual para prevenir excepciones de PK
-            cur.execute("SELECT id_producto FROM productos WHERE id_producto = %s;", (datos.id_producto,))
-            if cur.fetchone():
-                raise HTTPException(status_code=400, detail="El ID del producto ya existe en el catálogo.")
-            
-            cur.execute("CALL KHC_Productos_Alta(%s, %s, %s);", (datos.id_producto, datos.descripcion, datos.precio))
+            cur.execute("SELECT KHC_Productos_Alta(%s, %s);", (datos.descripcion, datos.precio))
+            id_generado = cur.fetchone()[0]
             conn.commit()
-            return {"mensaje": "Producto registrado exitosamente en el catálogo"}
+            return {"mensaje": "Producto registrado", "id_producto": id_generado}
     except psycopg2.Error as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Error en la transacción SQL: {e}")
+        raise HTTPException(status_code=500, detail=f"Error transaccional SQL: {e}")
     finally:
         conn.close()
 

@@ -41,7 +41,6 @@ def obtener_conexion():
 
 # --- MODELOS DE DATOS ---
 class AltaProductoInventario(BaseModel):
-    id_producto: int
     descripcion: str
     precio: float
     cantidad_inicial: int = Field(ge=0, description="El stock inicial no puede ser negativo")
@@ -64,25 +63,19 @@ def consultar_inventario():
 
 @app.post("/inventario/alta", dependencies=[Depends(verificar_token)])
 def alta_producto_e_inventario(datos: AltaProductoInventario):
-    """Crea el producto en el catálogo y le asigna su inventario inicial (Transacción)"""
     conn = obtener_conexion()
     try:
         with conn.cursor() as cur:
-            # Validar si el producto ya existe en catálogo
-            cur.execute("SELECT id_producto FROM productos WHERE id_producto = %s;", (datos.id_producto,))
-            if cur.fetchone():
-                raise HTTPException(status_code=400, detail="El ID del producto ya existe.")
-            
-            # Ejecutar SP de Alta
             cur.execute(
-                "CALL KHC_Inventario_Alta(%s, %s, %s, %s);", 
-                (datos.id_producto, datos.descripcion, datos.precio, datos.cantidad_inicial)
+                "SELECT KHC_Inventario_Alta(%s, %s, %s);", 
+                (datos.descripcion, datos.precio, datos.cantidad_inicial)
             )
+            id_generado = cur.fetchone()[0]
             conn.commit()
-            return {"mensaje": "Producto creado e inventario asignado correctamente"}
+            return {"mensaje": "Producto e inventario creados", "id_producto": id_generado}
     except psycopg2.Error as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Error en la transacción SQL: {e}")
+        raise HTTPException(status_code=500, detail=f"Error transaccional SQL: {e}")
     finally:
         conn.close()
 

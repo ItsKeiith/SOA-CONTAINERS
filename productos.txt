@@ -1,4 +1,0 @@
-id_producto|descripcion
-1|Laptop
-2|Tablet
-3|Audifonos

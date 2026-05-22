@@ -110,7 +110,6 @@ def publicar_pedido_en_cola(datos_pedido: dict):
 
 # --- MODELOS ---
 class Pedido(BaseModel):
-    id_pedido: int
     id_cliente: int
     id_producto: int
     cantidad: int = Field(gt=0, description="La cantidad debe ser mayor a 0")
@@ -133,25 +132,23 @@ def consultar_pedidos():
 
 @app.post("/pedidos", dependencies=[Depends(verificar_token)])
 def registrar_pedido(nuevo_pedido: Pedido):
-    """Registra el pedido en Postgres, descuenta inventario y lo encola en RabbitMQ"""
     conn = obtener_conexion()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id_pedido FROM pedidos WHERE id_pedido = %s;", (nuevo_pedido.id_pedido,))
-            if cur.fetchone():
-                raise HTTPException(status_code=400, detail="El ID del pedido ya existe.")
-            
             cur.execute(
-                "CALL khc_pedidos_agregar(%s, %s, %s, %s);", 
-                (nuevo_pedido.id_pedido, nuevo_pedido.id_cliente, nuevo_pedido.id_producto, nuevo_pedido.cantidad)
+                "SELECT khc_pedidos_agregar(%s, %s, %s);", 
+                (nuevo_pedido.id_cliente, nuevo_pedido.id_producto, nuevo_pedido.cantidad)
             )
+            id_generado = cur.fetchone()[0]
             conn.commit()
             
+            # Reconstruimos el diccionario incluyendo el ID generado para enviarlo a RabbitMQ
             datos_dict = nuevo_pedido.model_dump()
+            datos_dict["id_pedido"] = id_generado
             publicar_pedido_en_cola(datos_dict)
             
             return {
-                "mensaje": "Pedido registrado, inventario descontado y encolado en RabbitMQ exitosamente.", 
+                "mensaje": "Pedido registrado y encolado", 
                 "datos": datos_dict
             }
             

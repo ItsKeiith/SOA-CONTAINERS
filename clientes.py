@@ -27,8 +27,8 @@ DATABASE_URL = os.getenv(
 )
 
 # --- MODELOS DE DATOS ---
-class Cliente(BaseModel):
-    id_cliente: int 
+
+class ClienteAlta(BaseModel):
     nombre: str
     correo: EmailStr
     direccion: str
@@ -109,26 +109,23 @@ def obtener_clientes():
         conn.close()
 
 @app.post("/clientes", dependencies=[Depends(verificar_token)])
-def registrar_cliente(nuevo_cliente: Cliente):
+def registrar_cliente(nuevo_cliente: ClienteAlta):
     conn = obtener_conexion()
     try:
         with conn.cursor() as cur:
-            # Control de integridad de clave primaria
-            cur.execute("SELECT id_cliente FROM clientes WHERE id_cliente = %s;", (nuevo_cliente.id_cliente,))
-            if cur.fetchone():
-                raise HTTPException(status_code=400, detail="Identificador de cliente duplicado.")
-            
+            # Cambiamos CALL por SELECT y leemos el ID devuelto
             cur.execute(
-                "CALL KHC_Clientes_Agregar(%s, %s, %s, %s, %s, %s);", 
-                (nuevo_cliente.id_cliente, nuevo_cliente.nombre, nuevo_cliente.correo, nuevo_cliente.direccion, nuevo_cliente.telefono, nuevo_cliente.activo)
+                "SELECT KHC_Clientes_Agregar(%s, %s, %s, %s, %s);", 
+                (nuevo_cliente.nombre, nuevo_cliente.correo, nuevo_cliente.direccion, nuevo_cliente.telefono, nuevo_cliente.activo)
             )
+            id_generado = cur.fetchone()[0]
             conn.commit()
             
-            publicar_evento_cliente("cliente_creado", {"id_cliente": nuevo_cliente.id_cliente, "nombre": nuevo_cliente.nombre})
-            return {"mensaje": "Transacción de registro completada"}
+            publicar_evento_cliente("cliente_creado", {"id_cliente": id_generado, "nombre": nuevo_cliente.nombre})
+            return {"mensaje": "Cliente registrado exitosamente", "id_cliente": id_generado}
     except psycopg2.Error as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Error en la transacción SQL: {e}")
+        raise HTTPException(status_code=500, detail=f"Error transaccional: {e}")
     finally:
         conn.close()
 

@@ -3,27 +3,78 @@ import json
 import pika
 import jwt
 import psycopg2
+import threading
+import time
+from contextlib import asynccontextmanager
 from psycopg2.extras import RealDictCursor
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="Microservicio de Pedidos", version="3.0")
-
 # --- CONFIGURACIONES ---
-# Preparado para la nube: Si no encuentra la variable, usa tu entorno local de Docker
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "host.docker.internal")
-
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
     "postgresql://shopnow_663n_user:mJKZ4Bs3pW5XqeK5c5FLlukVy1TUGEIl@dpg-d7ohmhpj2pic73abp6l0-a.oregon-postgres.render.com/shopnow_663n"
 )
-
-# --- SEGURIDAD JWT ---
 SECRET_KEY = "secret_password_login_super_segura_32"
 ALGORITHM = "HS256"
 security = HTTPBearer()
 
+# --- LÓGICA DEL WORKER (RABBITMQ CONSUMER) ---
+def procesar_mensaje(ch, method, properties, body):
+    pedido = json.loads(body)
+    print(f"\n[*] 📥 Nuevo pedido validado recibido en Worker: ID {pedido['id_pedido']}")
+    
+    try:
+        # Lógica de post-procesamiento
+        print(f"   [~] Generando factura para el cliente {pedido['id_cliente']}...")
+        time.sleep(2) 
+        
+        print("   [~] Notificando al área de logística para el envío...")
+        time.sleep(1)
+        
+        print(f"   [+] ✅ Procesamiento completado para el pedido {pedido['id_pedido']}.")
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+
+    except Exception as e:
+        print(f"   [!] Error interno procesando el pedido: {e}")
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+        time.sleep(5)
+
+def iniciar_worker():
+    try:
+        servidor_impreso = RABBITMQ_URL.split('@')[-1] if '@' in RABBITMQ_URL else RABBITMQ_URL
+        print(f"[*] Hilo del Worker conectando a RabbitMQ en: {servidor_impreso}")
+        
+        if "amqp" in RABBITMQ_URL:
+            parametros = pika.URLParameters(RABBITMQ_URL)
+        else:
+            parametros = pika.ConnectionParameters(host=RABBITMQ_URL)
+            
+        conexion = pika.BlockingConnection(parametros)
+        canal = conexion.channel()
+        canal.queue_declare(queue='cola_procesamiento_pedidos', durable=True)
+        canal.basic_qos(prefetch_count=1)
+        canal.basic_consume(queue='cola_procesamiento_pedidos', on_message_callback=procesar_mensaje)
+        
+        print(" [*] 🚀 Hilo del Worker iniciado. Escuchando peticiones en segundo plano...")
+        canal.start_consuming()
+    except Exception as e:
+        print(f"[Error Crítico en Hilo del Worker] No se pudo conectar a RabbitMQ: {e}")
+
+# --- LIFESPAN (MANEJO DEL HILO AL ARRANCAR FASTAPI) ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Se ejecuta al iniciar el servidor FastAPI
+    thread_worker = threading.Thread(target=iniciar_worker, daemon=True)
+    thread_worker.start()
+    yield
+    # Se ejecuta al apagar el servidor (limpieza si fuera necesaria)
+
+app = FastAPI(title="Microservicio de Pedidos", version="3.0", lifespan=lifespan)
+
+# --- UTILIDADES API ---
 def verificar_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     try:
@@ -40,17 +91,8 @@ def obtener_conexion():
     except psycopg2.Error as e:
         raise HTTPException(status_code=500, detail=f"Error de conexión a la BD: {e}")
 
-# --- MODELOS DE DATOS ---
-class Pedido(BaseModel):
-    id_pedido: int
-    id_cliente: int
-    id_producto: int
-    cantidad: int = Field(gt=0, description="La cantidad debe ser mayor a 0")
-
-# --- RABBITMQ ---
 def publicar_pedido_en_cola(datos_pedido: dict):
     try:
-        # Si usas una URL en la nube (como CloudAMQP), pika la parsea automáticamente
         parametros = pika.URLParameters(RABBITMQ_URL) if "amqp" in RABBITMQ_URL else pika.ConnectionParameters(host=RABBITMQ_URL)
         conexion = pika.BlockingConnection(parametros)
         canal = conexion.channel()
@@ -60,15 +102,20 @@ def publicar_pedido_en_cola(datos_pedido: dict):
             exchange='',
             routing_key='cola_procesamiento_pedidos',
             body=json.dumps(datos_pedido),
-            properties=pika.BasicProperties(delivery_mode=2) # Hace el mensaje persistente
+            properties=pika.BasicProperties(delivery_mode=2) 
         )
         conexion.close()
     except Exception as e:
-        # No bloqueamos el pedido en BD si Rabbit falla, pero lo notificamos en consola
         print(f"[Advertencia] El pedido se guardó en BD, pero RabbitMQ falló: {e}")
 
-# --- ENDPOINTS ---
+# --- MODELOS ---
+class Pedido(BaseModel):
+    id_pedido: int
+    id_cliente: int
+    id_producto: int
+    cantidad: int = Field(gt=0, description="La cantidad debe ser mayor a 0")
 
+# --- ENDPOINTS ---
 @app.get("/pedidos", dependencies=[Depends(verificar_token)])
 def consultar_pedidos():
     """Obtiene todos los pedidos registrados en la base de datos"""
@@ -76,7 +123,6 @@ def consultar_pedidos():
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("SELECT * FROM KHC_Pedidos_Consultar();")
-            # Convertimos fechas a string para que FastAPI las serialice a JSON sin problemas
             pedidos = cur.fetchall()
             for p in pedidos:
                 if 'created_at' in p and p['created_at']:
@@ -91,19 +137,16 @@ def registrar_pedido(nuevo_pedido: Pedido):
     conn = obtener_conexion()
     try:
         with conn.cursor() as cur:
-            # Control de duplicados (PK)
             cur.execute("SELECT id_pedido FROM pedidos WHERE id_pedido = %s;", (nuevo_pedido.id_pedido,))
             if cur.fetchone():
                 raise HTTPException(status_code=400, detail="El ID del pedido ya existe.")
             
-            # 1. Guardar en BD y procesar inventario mediante el SP
             cur.execute(
                 "CALL khc_pedidos_agregar(%s, %s, %s, %s);", 
                 (nuevo_pedido.id_pedido, nuevo_pedido.id_cliente, nuevo_pedido.id_producto, nuevo_pedido.cantidad)
             )
             conn.commit()
             
-            # 2. Publicar evento en RabbitMQ
             datos_dict = nuevo_pedido.model_dump()
             publicar_pedido_en_cola(datos_dict)
             
@@ -119,15 +162,12 @@ def registrar_pedido(nuevo_pedido: Pedido):
         conn.rollback()
         error_pg = str(e)
         
-        # Interceptar excepciones personalizadas lanzadas desde PL/pgSQL
         if "ERR_STOCK_INSUFICIENTE" in error_pg:
             mensaje_limpio = error_pg.split("ERR_STOCK_INSUFICIENTE: ")[-1].split("\n")[0]
             raise HTTPException(status_code=400, detail=mensaje_limpio)
-        
         elif "ERR_NO_INVENTARIO" in error_pg:
             raise HTTPException(status_code=404, detail="El producto solicitado no cuenta con un registro de inventario.")
             
-        # Para cualquier otro error de base de datos no contemplado
         raise HTTPException(status_code=500, detail=f"Error transaccional SQL: {error_pg}")
     finally:
         conn.close()

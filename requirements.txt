@@ -7,4 +7,4 @@ pika==1.3.2
 PyJWT==2.8.0
 email-validator==2.1.1
 psycopg2-binary
-nicegui>=1.4.15
+nicegui>=2.0.0

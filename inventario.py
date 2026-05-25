@@ -37,9 +37,8 @@ def obtener_conexion():
 
 # --- MODELOS DE DATOS ---
 class AltaInventario(BaseModel):
-    descripcion: str
-    precio: float
-    cantidad_inicial: int = Field(ge=0)
+    id_producto: int = Field(..., description="ID del producto existente en el catálogo")
+    cantidad_inicial: int = Field(ge=0, description="Cantidad física inicial en almacén")
 
 class AgregarStock(BaseModel):
     cantidad_a_sumar: int = Field(gt=0, description="Cantidad de unidades a ingresar")
@@ -71,16 +70,25 @@ def obtener_inventario():
 
 @app.post("/inventario/alta", dependencies=[Depends(verificar_token)])
 def registrar_alta_inventario(datos: AltaInventario):
+    """Inicializa el stock de un producto que ya existe en el catálogo"""
     conn = obtener_conexion()
     try:
         with conn.cursor() as cur:
+            # Validamos que el producto exista y esté activo en el catálogo
+            cur.execute("SELECT id_producto FROM productos WHERE id_producto = %s AND activo = true;", (datos.id_producto,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="El producto no existe en el catálogo o está inactivo.")
+            
             cur.execute(
-                "SELECT KHC_Inventario_Alta(%s, %s, %s);", 
-                (datos.descripcion, datos.precio, datos.cantidad_inicial)
+                "INSERT INTO inventario (id_producto, cantidad) VALUES (%s, %s);", 
+                (datos.id_producto, datos.cantidad_inicial)
             )
-            id_generado = cur.fetchone()[0]
             conn.commit()
-            return {"mensaje": "Producto e inventario creados", "id_producto": id_generado}
+            return {"mensaje": "Inventario inicializado correctamente"}
+            
+    except psycopg2.IntegrityError:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail="Este producto ya cuenta con un registro de inventario activo.")
     except psycopg2.Error as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=f"Error transaccional SQL: {e}")

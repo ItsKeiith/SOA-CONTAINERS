@@ -293,10 +293,10 @@ def dashboard_inventario():
     menu_superior()
 
     with ui.column().classes('w-full max-w-5xl mx-auto p-6'):
-        # Se añade el botón de Alta directamente en la cabecera de esta vista
         with ui.row().classes('w-full justify-between items-center q-mb-md'):
             ui.label('Control de Inventario').classes('text-h4 font-bold text-gray-800')
-            ui.button('Alta en Inventario', on_click=lambda: dialog_alta_inv.open(), icon='add_box').classes('bg-green-600 text-white')
+            # El botón ahora llama a una función específica para preparar el diálogo
+            ui.button('Alta en Inventario', on_click=lambda: abrir_dialogo_alta(), icon='add_box').classes('bg-green-600 text-white')
 
         columnas_inv = [
             {'name': 'id', 'label': 'ID Producto', 'field': 'id_producto', 'align': 'left'},
@@ -317,31 +317,59 @@ def dashboard_inventario():
             except requests.exceptions.RequestException:
                 ui.notify('Error al obtener datos', color='negative')
 
-        # --- LÓGICA DE ALTA EN INVENTARIO ---
+        # --- LÓGICA DE ALTA EN INVENTARIO (Corregida) ---
         with ui.dialog() as dialog_alta_inv, ui.card().classes('w-96'):
-            ui.label('Alta de Producto Inicial').classes('text-h6 font-bold')
-            a_desc = ui.input('Descripción').classes('w-full')
-            a_precio = ui.number('Precio Unitario', format='%.2f').classes('w-full')
-            a_stock = ui.number('Stock Inicial', format='%.0f').classes('w-full')
+            ui.label('Inicializar Stock de Producto').classes('text-h6 font-bold')
+            # Se cambia el input de texto por un menú desplegable
+            a_producto = ui.select(options={}, label='Seleccionar Producto del Catálogo').classes('w-full')
+            a_stock = ui.number('Stock Inicial Físico', format='%.0f').classes('w-full')
+
+            def abrir_dialogo_alta():
+                try:
+                    # 1. Obtenemos el catálogo de productos V1 para poblar la lista
+                    res_prod = requests.get(f"{API_PRODUCTOS}/v1/productos", headers=headers)
+                    if res_prod.status_code == 200:
+                        todos_los_productos = res_prod.json()
+                        
+                        # 2. Filtramos los productos que ya están en la tabla de inventario
+                        ids_en_inventario = [fila['id_producto'] for fila in tabla_inv.rows]
+                        opciones_disponibles = {
+                            p['id_producto']: f"[{p['id_producto']}] {p['descripcion']}" 
+                            for p in todos_los_productos 
+                            if p['id_producto'] not in ids_en_inventario and p['activo'] is True
+                        }
+                        
+                        if not opciones_disponibles:
+                            ui.notify('Todos los productos activos ya tienen inventario inicializado.', color='warning')
+                            return
+                            
+                        # 3. Llenamos el menú y abrimos el modal
+                        a_producto.options = opciones_disponibles
+                        a_producto.value = None
+                        a_stock.value = None
+                        dialog_alta_inv.open()
+                    else:
+                        ui.notify('No se pudo cargar el catálogo de productos.', color='negative')
+                except Exception:
+                    ui.notify('Fallo de red al consultar productos.', color='negative')
 
             def guardar_alta_inv():
+                if not a_producto.value:
+                    ui.notify('Debe seleccionar un producto.', color='warning')
+                    return
+                    
                 datos_alta = {
-                    "descripcion": a_desc.value,
-                    "precio": float(a_precio.value) if a_precio.value else 0.0,
+                    "id_producto": a_producto.value,
                     "cantidad_inicial": int(a_stock.value) if a_stock.value else 0
                 }
                 try:
                     res = requests.post(f"{API_INVENTARIO}/inventario/alta", json=datos_alta, headers=headers)
                     if res.status_code == 200:
-                        ui.notify('Producto registrado en inventario', color='positive')
+                        ui.notify('Stock inicializado correctamente', color='positive')
                         dialog_alta_inv.close()
                         cargar_inventario()
-                        # Limpiar formulario
-                        a_desc.value = ''
-                        a_precio.value = None
-                        a_stock.value = None
                     else:
-                        ui.notify('Fallo de integridad en base de datos', color='negative')
+                        ui.notify(f'Fallo: {res.json().get("detail", "Error de integridad")}', color='negative')
                 except Exception:
                     ui.notify('Fallo de red', color='negative')
 
@@ -349,7 +377,7 @@ def dashboard_inventario():
                 ui.button('Cancelar', on_click=dialog_alta_inv.close).props('flat')
                 ui.button('Guardar', on_click=guardar_alta_inv).classes('bg-blue-600')
 
-        # --- LÓGICA PARA SUMAR STOCK ---
+        # --- LÓGICA PARA SUMAR STOCK (Permanece Intacta) ---
         with ui.row().classes('w-full justify-start q-mt-md gap-4'):
             btn_sumar_stock = ui.button('Añadir Stock', icon='inventory').classes('bg-blue-500').props('disable')
 
@@ -390,7 +418,7 @@ def dashboard_inventario():
 
         tabla_inv.on('selection', control_seleccion_inv)
         cargar_inventario()
-
+                
 @ui.page('/')
 def dashboard_clientes():
     auth = verificar_autenticacion()

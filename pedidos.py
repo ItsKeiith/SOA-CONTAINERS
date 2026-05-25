@@ -1,3 +1,4 @@
+import requests
 import os
 import json
 import pika
@@ -24,21 +25,15 @@ security = HTTPBearer()
 # --- LÓGICA DEL WORKER (RABBITMQ CONSUMER) ---
 def procesar_mensaje(ch, method, properties, body):
     pedido = json.loads(body)
-    print(f"\n[*] 📥 Nuevo pedido validado recibido en Worker: ID {pedido['id_pedido']}")
+    print(f"\nNuevo pedido validado recibido en Worker: ID {pedido['id_pedido']}")
     
     try:
         # Lógica de post-procesamiento
-        print(f"   [~] Generando factura para el cliente {pedido['id_cliente']}...")
-        time.sleep(2) 
-        
-        print("   [~] Notificando al área de logística para el envío...")
-        time.sleep(1)
-        
-        print(f"   [+] ✅ Procesamiento completado para el pedido {pedido['id_pedido']}.")
+        print(f" Procesamiento completado para el pedido {pedido['id_pedido']}.")
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     except Exception as e:
-        print(f"   [!] Error interno procesando el pedido: {e}")
+        print(f" Error interno procesando el pedido: {e}")
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
         time.sleep(5)
 

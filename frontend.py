@@ -165,13 +165,14 @@ def dashboard_productos():
         tabla_prod = ui.table(columns=columnas_v1, rows=[], row_key='id_producto', selection='single').classes('w-full shadow-md')
 
         def cargar_productos():
-            version = version_select.value  # Obtiene 'v1' o 'v2'
+            version = version_select.value  
             try:
-                # Apunta dinámicamente al endpoint versionado correspondiente
                 res = requests.get(f"{API_PRODUCTOS}/{version}/productos", headers=headers)
                 if res.status_code == 200:
                     tabla_prod.rows = res.json()
                     tabla_prod.update()
+                else:
+                    ui.notify(f'Error en Productos: {res.status_code} - {res.text}', color='negative', timeout=10000)
             except requests.exceptions.RequestException:
                 ui.notify('Error de red al conectar con el servicio de productos', color='negative')
 
@@ -311,6 +312,8 @@ def dashboard_inventario():
                 if res.status_code == 200:
                     tabla_inv.rows = res.json()
                     tabla_inv.update()
+                else:
+                    ui.notify(f'Error en Inventario: {res.status_code} - {res.text}', color='negative', timeout=10000)
             except requests.exceptions.RequestException:
                 ui.notify('Error al obtener datos', color='negative')
 

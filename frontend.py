@@ -45,15 +45,27 @@ def login_page():
         
         def intentar_login():
             try:
-                res = requests.post(f"{API_CLIENTES}/login", json={"usuario": usuario.value, "password": password.value})
+                payload = {
+                    "usuario": usuario.value.strip(), 
+                    "password": password.value.strip()
+                }
+                res = requests.post(f"{API_CLIENTES}/login", json=payload)
+                
                 if res.status_code == 200:
                     app.storage.user['token'] = res.json().get("access_token")
-                    ui.notify('Acceso exitoso', color='positive')
+                    ui.notify('Acceso exitoso. Generando cookie de sesión...', color='positive')
                     ui.open('/')
+                elif res.status_code == 401:
+                    ui.notify('Credenciales rechazadas por el servidor (401)', color='negative')
                 else:
-                    ui.notify('Credenciales incorrectas', color='negative')
+                    try:
+                        detalle_error = res.json().get('detail', 'Sin detalles')
+                    except Exception:
+                        detalle_error = res.text[:50]
+                    ui.notify(f'Error del sistema ({res.status_code}): {detalle_error}', color='warning')
+                    
             except requests.exceptions.RequestException as e:
-                ui.notify(f'Error de red: {e}', color='negative')
+                ui.notify(f'Fallo de conexión al microservicio: {e}', color='negative')
 
         ui.button('Entrar', on_click=intentar_login).classes('w-full q-mt-md bg-blue-600')
 

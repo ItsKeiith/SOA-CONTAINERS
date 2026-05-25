@@ -1,5 +1,5 @@
-from fastapi.responses import RedirectResponse
 from nicegui import app, ui
+from fastapi.responses import RedirectResponse
 import requests
 import os
 
@@ -10,6 +10,7 @@ API_INVENTARIO = os.getenv("API_INVENTARIO", "http://inventario:8003")
 API_PEDIDOS = os.getenv("API_PEDIDOS", "http://pedidos:8004")
 
 def verificar_autenticacion():
+    """Retorna una redirección HTTP si el token no existe en el almacenamiento."""
     if not app.storage.user.get('token'):
         return RedirectResponse('/login')
     return None
@@ -35,7 +36,7 @@ def menu_superior():
 @ui.page('/login')
 def login_page():
     if app.storage.user.get('token'):
-        return RedirectResponse('/') # Redirección HTTP nativa
+        return RedirectResponse('/')
 
     with ui.card().classes('absolute-center w-96 shadow-lg'):
         ui.label('Acceso al Sistema').classes('text-h5 q-mb-md font-bold')
@@ -88,31 +89,24 @@ def dashboard_pedidos():
             except requests.exceptions.RequestException:
                 ui.notify('Error al conectar con el worker de pedidos', color='negative')
 
-        # Dialog para Registrar Pedido
         with ui.dialog() as dialog_crear_pedido, ui.card().classes('w-96'):
             ui.label('Formulario de Pedido').classes('text-h6 font-bold')
-            # Nota: En una iteración futura, estos inputs pueden ser ui.select cargados desde los microservicios respectivos.
             ped_cliente = ui.number('ID Cliente', format='%.0f').classes('w-full')
             ped_producto = ui.number('ID Producto', format='%.0f').classes('w-full')
             ped_cantidad = ui.number('Cantidad solicitada', format='%.0f').classes('w-full')
             
             def procesar_pedido():
-                datos = {
-                    "id_cliente": int(ped_cliente.value),
-                    "id_producto": int(ped_producto.value),
-                    "cantidad": int(ped_cantidad.value)
-                }
+                datos = {"id_cliente": int(ped_cliente.value), "id_producto": int(ped_producto.value), "cantidad": int(ped_cantidad.value)}
                 try:
                     res = requests.post(f"{API_PEDIDOS}/pedidos", json=datos, headers=headers)
                     if res.status_code == 200:
-                        ui.notify('Pedido registrado y procesado en cola', color='positive')
+                        ui.notify('Pedido procesado', color='positive')
                         dialog_crear_pedido.close()
                         cargar_pedidos()
                     else:
-                        mensaje_error = res.json().get('detail', 'Error de procesamiento')
-                        ui.notify(f'Fallo de integridad: {mensaje_error}', color='negative')
+                        ui.notify('Fallo de integridad', color='negative')
                 except requests.exceptions.RequestException:
-                    ui.notify('Error en la solicitud HTTP', color='negative')
+                    ui.notify('Error en solicitud HTTP', color='negative')
 
             with ui.row().classes('w-full justify-end q-mt-md'):
                 ui.button('Cancelar', on_click=dialog_crear_pedido.close).props('flat')
@@ -122,7 +116,9 @@ def dashboard_pedidos():
 
 @ui.page('/productos')
 def dashboard_productos():
-    verificar_autenticacion()
+    auth = verificar_autenticacion()
+    if auth: return auth
+
     headers = get_headers()
     menu_superior()
 
@@ -147,9 +143,8 @@ def dashboard_productos():
                     tabla_prod.rows = res.json()
                     tabla_prod.update()
             except requests.exceptions.RequestException:
-                ui.notify('Error de conexión con el servicio de productos', color='negative')
+                ui.notify('Error de red', color='negative')
 
-        # Dialog para Alta de Producto
         with ui.dialog() as dialog_crear_prod, ui.card().classes('w-96'):
             ui.label('Registrar Nuevo Producto').classes('text-h6 font-bold')
             p_desc = ui.input('Descripción').classes('w-full')
@@ -163,10 +158,8 @@ def dashboard_productos():
                         ui.notify('Registro exitoso', color='positive')
                         dialog_crear_prod.close()
                         cargar_productos()
-                        p_desc.value = ''
-                        p_precio.value = None
                 except requests.exceptions.RequestException:
-                    ui.notify('Fallo en la transacción de red', color='negative')
+                    ui.notify('Fallo de red', color='negative')
 
             with ui.row().classes('w-full justify-end q-mt-md'):
                 ui.button('Cancelar', on_click=dialog_crear_prod.close).props('flat')
@@ -176,7 +169,9 @@ def dashboard_productos():
 
 @ui.page('/inventario')
 def dashboard_inventario():
-    verificar_autenticacion()
+    auth = verificar_autenticacion()
+    if auth: return auth
+
     headers = get_headers()
     menu_superior()
 
@@ -198,7 +193,7 @@ def dashboard_inventario():
                     tabla_inv.rows = res.json()
                     tabla_inv.update()
             except requests.exceptions.RequestException:
-                ui.notify('Error al obtener datos de inventario', color='negative')
+                ui.notify('Error al obtener datos', color='negative')
 
         with ui.row().classes('w-full justify-start q-mt-md gap-4'):
             btn_sumar_stock = ui.button('Añadir Stock', icon='add_box').classes('bg-blue-500').props('disable')
@@ -210,19 +205,13 @@ def dashboard_inventario():
 
             def aplicar_stock():
                 try:
-                    res = requests.patch(
-                        f"{API_INVENTARIO}/inventario/{s_id.text}/agregar", 
-                        json={"cantidad_a_sumar": int(s_cantidad.value)}, 
-                        headers=headers
-                    )
+                    res = requests.patch(f"{API_INVENTARIO}/inventario/{s_id.text}/agregar", json={"cantidad_a_sumar": int(s_cantidad.value)}, headers=headers)
                     if res.status_code == 200:
-                        ui.notify('Stock actualizado en la base de datos', color='positive')
+                        ui.notify('Stock actualizado', color='positive')
                         dialog_stock.close()
                         tabla_inv.selected.clear()
                         btn_sumar_stock.props(add='disable')
                         cargar_inventario()
-                    else:
-                        ui.notify('Error en la actualización de stock', color='negative')
                 except Exception:
                     ui.notify('Error de red', color='negative')
 
@@ -249,10 +238,10 @@ def dashboard_inventario():
 
 @ui.page('/')
 def dashboard_clientes():
-    verificar_autenticacion()
-    headers = get_headers()
+    auth = verificar_autenticacion()
+    if auth: return auth
 
-    # Barra de navegación
+    headers = get_headers()
     menu_superior()
 
     with ui.column().classes('w-full max-w-5xl mx-auto p-6'):
@@ -260,7 +249,6 @@ def dashboard_clientes():
             ui.label('Directorio de Clientes').classes('text-h4 font-bold text-gray-800')
             ui.button('Nuevo Cliente', on_click=lambda: dialog_crear.open(), icon='add').classes('bg-green-600 text-white')
 
-        # Definición de la tabla
         columnas = [
             {'name': 'id', 'label': 'ID', 'field': 'id_cliente', 'align': 'left'},
             {'name': 'nombre', 'label': 'Nombre', 'field': 'nombre', 'align': 'left'},
@@ -270,7 +258,6 @@ def dashboard_clientes():
             {'name': 'activo', 'label': 'Estado', 'field': 'activo', 'align': 'center'}
         ]
         
-        # Tabla con selección de fila única
         tabla = ui.table(columns=columnas, rows=[], row_key='id_cliente', selection='single').classes('w-full shadow-md')
 
         def cargar_clientes():
@@ -282,9 +269,8 @@ def dashboard_clientes():
                 elif res.status_code == 401:
                     logout()
             except requests.exceptions.RequestException:
-                ui.notify('Error al conectar con el servidor de base de datos', color='negative')
+                ui.notify('Error al conectar con la base de datos', color='negative')
 
-        # --- LÓGICA DE CREACIÓN ---
         with ui.dialog() as dialog_crear, ui.card().classes('w-96'):
             ui.label('Registrar Nuevo Cliente').classes('text-h6 font-bold')
             c_nombre = ui.input('Nombre Completo').classes('w-full')
@@ -293,39 +279,28 @@ def dashboard_clientes():
             c_direccion = ui.input('Dirección').classes('w-full')
             
             def guardar_nuevo():
-                datos = {
-                    "nombre": c_nombre.value,
-                    "correo": c_correo.value,
-                    "telefono": c_telefono.value,
-                    "direccion": c_direccion.value,
-                    "activo": True
-                }
+                datos = {"nombre": c_nombre.value, "correo": c_correo.value, "telefono": c_telefono.value, "direccion": c_direccion.value, "activo": True}
                 try:
                     res = requests.post(f"{API_CLIENTES}/clientes", json=datos, headers=headers)
                     if res.status_code == 200:
-                        ui.notify('Cliente registrado exitosamente', color='positive')
+                        ui.notify('Cliente registrado', color='positive')
                         dialog_crear.close()
                         cargar_clientes()
-                        # Limpiar campos
                         c_nombre.value = c_correo.value = c_telefono.value = c_direccion.value = ''
-                    else:
-                        ui.notify(f'Error: {res.json().get("detail", "Error desconocido")}', color='negative')
                 except requests.exceptions.RequestException:
-                    ui.notify('Fallo en la comunicación de red', color='negative')
+                    ui.notify('Fallo de red', color='negative')
 
             with ui.row().classes('w-full justify-end q-mt-md'):
                 ui.button('Cancelar', on_click=dialog_crear.close).props('flat')
                 ui.button('Guardar', on_click=guardar_nuevo).classes('bg-blue-600')
 
-        # --- LÓGICA DE EDICIÓN Y ELIMINACIÓN ---
-        # Componentes condicionales que se activan al seleccionar una fila
         with ui.row().classes('w-full justify-start q-mt-md gap-4'):
             btn_editar = ui.button('Editar Seleccionado', icon='edit').classes('bg-orange-500').props('disable')
             btn_eliminar = ui.button('Dar de Baja', icon='delete').classes('bg-red-600').props('disable')
 
         with ui.dialog() as dialog_editar, ui.card().classes('w-96'):
             ui.label('Editar Cliente').classes('text-h6 font-bold')
-            e_id = ui.label().classes('hidden') # Almacena el ID temporalmente
+            e_id = ui.label().classes('hidden')
             e_nombre = ui.input('Nombre Completo').classes('w-full')
             e_correo = ui.input('Correo Electrónico').classes('w-full')
             e_telefono = ui.input('Teléfono').classes('w-full')
@@ -333,25 +308,16 @@ def dashboard_clientes():
             e_activo = ui.checkbox('Cliente Activo')
 
             def aplicar_edicion():
-                id_cliente = e_id.text
-                datos_nuevos = {
-                    "nombre": e_nombre.value,
-                    "correo": e_correo.value,
-                    "telefono": e_telefono.value,
-                    "direccion": e_direccion.value,
-                    "activo": e_activo.value
-                }
+                datos_nuevos = {"nombre": e_nombre.value, "correo": e_correo.value, "telefono": e_telefono.value, "direccion": e_direccion.value, "activo": e_activo.value}
                 try:
-                    res = requests.patch(f"{API_CLIENTES}/clientes/{id_cliente}", json=datos_nuevos, headers=headers)
+                    res = requests.patch(f"{API_CLIENTES}/clientes/{e_id.text}", json=datos_nuevos, headers=headers)
                     if res.status_code == 200:
-                        ui.notify('Atributos actualizados', color='positive')
+                        ui.notify('Actualización completada', color='positive')
                         dialog_editar.close()
                         tabla.selected.clear()
                         actualizar_botones()
                         cargar_clientes()
-                    else:
-                        ui.notify('Error en la actualización', color='negative')
-                except Exception as e:
+                except Exception:
                     ui.notify('Error de red', color='negative')
 
             with ui.row().classes('w-full justify-end q-mt-md'):
@@ -371,21 +337,19 @@ def dashboard_clientes():
 
         def ejecutar_baja():
             if tabla.selected:
-                id_cliente = tabla.selected[0]['id_cliente']
                 try:
-                    res = requests.delete(f"{API_CLIENTES}/clientes/{id_cliente}", headers=headers)
+                    res = requests.delete(f"{API_CLIENTES}/clientes/{tabla.selected[0]['id_cliente']}", headers=headers)
                     if res.status_code == 200:
-                        ui.notify('Baja lógica ejecutada', color='info')
+                        ui.notify('Baja ejecutada', color='info')
                         tabla.selected.clear()
                         actualizar_botones()
                         cargar_clientes()
                 except Exception:
-                    ui.notify('Error al ejecutar la baja', color='negative')
+                    ui.notify('Error en baja', color='negative')
 
         btn_editar.on('click', abrir_edicion)
         btn_eliminar.on('click', ejecutar_baja)
 
-        # Control del estado de los botones según la selección
         def actualizar_botones():
             if tabla.selected:
                 btn_editar.props(remove='disable')
@@ -395,8 +359,6 @@ def dashboard_clientes():
                 btn_eliminar.props(add='disable')
 
         tabla.on('selection', actualizar_botones)
-
-        # Carga inicial
         cargar_clientes()
 
 puerto = int(os.getenv("PORT", 8080))

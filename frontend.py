@@ -10,31 +10,30 @@ API_PEDIDOS = os.getenv("API_PEDIDOS", "http://pedidos:8004")
 
 def verificar_autenticacion():
     if not app.storage.user.get('token'):
-        ui.navigate.to('/login')
+        ui.open('/login')
 
 def logout():
     app.storage.user['token'] = None
-    ui.navigate.to('/login')
+    ui.open('/login')
 
 def get_headers():
     token = app.storage.user.get('token')
     return {"Authorization": f"Bearer {token}"}
 
 def menu_superior():
-    """Renderiza la barra de navegación estándar para el panel de administración."""
     with ui.header().classes('justify-between items-center bg-slate-800 p-4'):
         ui.label('Panel de Administración').classes('text-h6 text-white font-bold')
         with ui.row():
-            ui.button('Clientes', on_click=lambda: ui.navigate.to('/')).props('flat text-color=white')
-            ui.button('Productos', on_click=lambda: ui.navigate.to('/productos')).props('flat text-color=white')
-            ui.button('Inventario', on_click=lambda: ui.navigate.to('/inventario')).props('flat text-color=white')
-            ui.button('Pedidos', on_click=lambda: ui.navigate.to('/pedidos')).props('flat text-color=white')
+            ui.button('Clientes', on_click=lambda: ui.open('/')).props('flat text-color=white')
+            ui.button('Productos', on_click=lambda: ui.open('/productos')).props('flat text-color=white')
+            ui.button('Inventario', on_click=lambda: ui.open('/inventario')).props('flat text-color=white')
+            ui.button('Pedidos', on_click=lambda: ui.open('/pedidos')).props('flat text-color=white')
             ui.button('Cerrar Sesión', on_click=logout).props('flat text-color=red-4')
 
 @ui.page('/login')
 def login_page():
     if app.storage.user.get('token'):
-        ui.navigate.to('/')
+        ui.open('/')
         return
 
     with ui.card().classes('absolute-center w-96 shadow-lg'):
@@ -48,7 +47,7 @@ def login_page():
                 if res.status_code == 200:
                     app.storage.user['token'] = res.json().get("access_token")
                     ui.notify('Acceso exitoso', color='positive')
-                    ui.navigate.to('/')
+                    ui.open('/')
                 else:
                     ui.notify('Credenciales incorrectas', color='negative')
             except requests.exceptions.RequestException as e:
@@ -396,6 +395,6 @@ def dashboard_clientes():
 
         # Carga inicial
         cargar_clientes()
-        
+
 puerto = int(os.getenv("PORT", 8080))
 ui.run(host="0.0.0.0", port=puerto, storage_secret="super_secret_nicegui_key_123")

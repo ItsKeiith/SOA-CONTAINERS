@@ -45,3 +45,15 @@ services:
     command: python worker.py
     environment:
       - RABBITMQ_URL=amqps://scenduia:1Hl5xa8q3E7---7IMwY89JFEIS5s9b5Y@duck.lmq.cloudamqp.com/scenduia
+
+  frontend:
+    build: .
+    container_name: panel_admin
+    command: python frontend.py
+    ports:
+      - "8080:8080"
+    depends_on:
+      - clientes
+      - productos
+      - inventario
+      - pedidos

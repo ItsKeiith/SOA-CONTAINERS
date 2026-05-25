@@ -1,4 +1,3 @@
-import requests
 import os
 import json
 import pika
@@ -33,7 +32,7 @@ def procesar_mensaje(ch, method, properties, body):
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     except Exception as e:
-        print(f" Error interno procesando el pedido: {e}")
+        print(f"Error interno procesando el pedido: {e}")
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
         time.sleep(5)
 

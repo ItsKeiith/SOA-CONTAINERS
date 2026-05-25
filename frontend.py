@@ -1,3 +1,4 @@
+from fastapi.responses import RedirectResponse
 from nicegui import app, ui
 import requests
 import os
@@ -10,7 +11,8 @@ API_PEDIDOS = os.getenv("API_PEDIDOS", "http://pedidos:8004")
 
 def verificar_autenticacion():
     if not app.storage.user.get('token'):
-        ui.open('/login')
+        return RedirectResponse('/login')
+    return None
 
 def logout():
     app.storage.user['token'] = None
@@ -33,8 +35,7 @@ def menu_superior():
 @ui.page('/login')
 def login_page():
     if app.storage.user.get('token'):
-        ui.open('/')
-        return
+        return RedirectResponse('/') # Redirección HTTP nativa
 
     with ui.card().classes('absolute-center w-96 shadow-lg'):
         ui.label('Acceso al Sistema').classes('text-h5 q-mb-md font-bold')
@@ -57,7 +58,9 @@ def login_page():
 
 @ui.page('/pedidos')
 def dashboard_pedidos():
-    verificar_autenticacion()
+    auth = verificar_autenticacion()
+    if auth: return auth
+
     headers = get_headers()
     menu_superior()
 

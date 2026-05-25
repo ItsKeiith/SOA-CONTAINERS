@@ -326,25 +326,26 @@ def dashboard_inventario():
 
             def abrir_dialogo_alta():
                 try:
-                    # 1. Obtenemos el catálogo de productos V1 para poblar la lista
                     res_prod = requests.get(f"{API_PRODUCTOS}/v1/productos", headers=headers)
                     if res_prod.status_code == 200:
                         todos_los_productos = res_prod.json()
                         
-                        # 2. Filtramos los productos que ya están en la tabla de inventario
                         ids_en_inventario = [fila['id_producto'] for fila in tabla_inv.rows]
+                        
+                        # Cambio de seguridad: se usa p.get('activo') en lugar de 'is True' 
+                        # para evitar conflictos de casteo entre PostgreSQL y Python
                         opciones_disponibles = {
                             p['id_producto']: f"[{p['id_producto']}] {p['descripcion']}" 
                             for p in todos_los_productos 
-                            if p['id_producto'] not in ids_en_inventario and p['activo'] is True
+                            if p['id_producto'] not in ids_en_inventario and p.get('activo')
                         }
                         
                         if not opciones_disponibles:
                             ui.notify('Todos los productos activos ya tienen inventario inicializado.', color='warning')
                             return
                             
-                        # 3. Llenamos el menú y abrimos el modal
                         a_producto.options = opciones_disponibles
+                        a_producto.update()
                         a_producto.value = None
                         a_stock.value = None
                         dialog_alta_inv.open()
@@ -418,7 +419,7 @@ def dashboard_inventario():
 
         tabla_inv.on('selection', control_seleccion_inv)
         cargar_inventario()
-                
+
 @ui.page('/')
 def dashboard_clientes():
     auth = verificar_autenticacion()

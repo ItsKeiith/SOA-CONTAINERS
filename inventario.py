@@ -2,19 +2,17 @@ import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
+from typing import Optional
 import jwt
 
-app = FastAPI(title="Microservicio de Inventario", version="3.0")
+app = FastAPI(title="Microservicio de Productos", version="3.0")
 
 # --- CONFIGURACIÓN DE SEGURIDAD JWT ---
 SECRET_KEY = "secret_password_login_super_segura_32"
 ALGORITHM = "HS256"
 security = HTTPBearer()
-
-# URL para el botón "Authorize" en Swagger (Puedes cambiarla por la URL de tu servicio de clientes en Render)
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="https://clientes-db-fbz3.onrender.com/login")
 
 def verificar_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
@@ -25,7 +23,6 @@ def verificar_token(credentials: HTTPAuthorizationCredentials = Depends(security
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expirado.")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido o corrupto.")
-
 
 # --- CONFIGURACIÓN DE BASE DE DATOS ---
 DATABASE_URL = os.getenv(
@@ -39,63 +36,143 @@ def obtener_conexion():
     except psycopg2.Error as e:
         raise HTTPException(status_code=500, detail=f"Error de conexión a la BD: {e}")
 
-# --- MODELOS DE DATOS ---
-class AltaProductoInventario(BaseModel):
-    descripcion: str
-    precio: float
-    cantidad_inicial: int = Field(ge=0, description="El stock inicial no puede ser negativo")
+# =================
+# MODELOS DE DATOS
+# =================
+class ProductoAltaV1(BaseModel):
+    descripcion: str = Field(..., max_length=100, description="Descripción del artículo")
+    precio: float = Field(..., gt=0, description="El precio debe ser mayor a 0")
 
-class AgregarStock(BaseModel):
-    cantidad_a_sumar: int = Field(gt=0, description="Debes sumar al menos 1 artículo")
+class ProductoUpdateV1(BaseModel):
+    descripcion: Optional[str] = Field(None, max_length=100)
+    precio: Optional[float] = Field(None, gt=0)
+    activo: Optional[bool] = None
+class ProductoAltaV2(BaseModel):
+    descripcion: str = Field(..., max_length=100, description="Descripción del artículo")
+    costo_unitario: float = Field(..., gt=0, description="Costo unitario del producto")
 
-# --- ENDPOINTS (Protegidos con JWT) ---
+class ProductoUpdateV2(BaseModel):
+    descripcion: Optional[str] = Field(None, max_length=100)
+    costo_unitario: Optional[float] = Field(None, gt=0)
+    activo: Optional[bool] = None
 
-@app.get("/inventario", dependencies=[Depends(verificar_token)])
-def consultar_inventario():
-    """Obtiene todo el stock disponible"""
+@app.get("/v1/productos", dependencies=[Depends(verificar_token)])
+def obtener_productos_v1():
     conn = obtener_conexion()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT * FROM KHC_Inventario_Consultar();")
+            cur.execute("SELECT * FROM KHC_Productos_Consultar();")
             return cur.fetchall()
     finally:
         conn.close()
 
-@app.post("/inventario/alta", dependencies=[Depends(verificar_token)])
-def alta_producto_e_inventario(datos: AltaProductoInventario):
+@app.post("/v1/productos", dependencies=[Depends(verificar_token)])
+def registrar_producto_v1(datos: ProductoAltaV1):
     conn = obtener_conexion()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT KHC_Inventario_Alta(%s, %s, %s);", 
-                (datos.descripcion, datos.precio, datos.cantidad_inicial)
-            )
+            cur.execute("SELECT KHC_Productos_Alta(%s, %s);", (datos.descripcion, datos.precio))
             id_generado = cur.fetchone()[0]
             conn.commit()
-            return {"mensaje": "Producto e inventario creados", "id_producto": id_generado}
+            return {"mensaje": "Producto registrado (V1)", "id_producto": id_generado}
     except psycopg2.Error as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=f"Error transaccional SQL: {e}")
     finally:
         conn.close()
 
-@app.patch("/inventario/{id_producto}/agregar", dependencies=[Depends(verificar_token)])
-def agregar_stock(id_producto: int, datos: AgregarStock):
-    """Suma stock al inventario existente de un producto"""
+@app.patch("/v1/productos/{id_producto}", dependencies=[Depends(verificar_token)])
+def modificar_producto_v1(id_producto: int, datos: ProductoUpdateV1):
     conn = obtener_conexion()
     try:
         with conn.cursor() as cur:
-            # Validar que el producto exista en el inventario
-            cur.execute("SELECT id_producto FROM inventario WHERE id_producto = %s;", (id_producto,))
+            cur.execute("SELECT id_producto FROM productos WHERE id_producto = %s;", (id_producto,))
             if not cur.fetchone():
-                raise HTTPException(status_code=404, detail="El producto no está registrado en el inventario.")
+                raise HTTPException(status_code=404, detail="Producto no encontrado.")
             
-            # Ejecutar SP para sumar stock
-            cur.execute("CALL KHC_Inventario_AgregarStock(%s, %s);", (id_producto, datos.cantidad_a_sumar))
+            cur.execute(
+                "CALL KHC_Productos_Actualizar(%s, %s, %s, %s);", 
+                (id_producto, datos.descripcion, datos.precio, datos.activo)
+            )
             conn.commit()
-            return {"mensaje": f"Se sumaron {datos.cantidad_a_sumar} unidades al producto {id_producto}"}
+            return {"mensaje": "Atributos actualizados correctamente (V1)"}
     except psycopg2.Error as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=f"Error en la transacción SQL: {e}")
     finally:
         conn.close()
+
+@app.delete("/v1/productos/{id_producto}", dependencies=[Depends(verificar_token)])
+def dar_baja_producto_v1(id_producto: int):
+    conn = obtener_conexion()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id_producto FROM productos WHERE id_producto = %s;", (id_producto,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Producto no encontrado.")
+            
+            cur.execute("CALL KHC_Productos_Eliminar(%s);", (id_producto,))
+            conn.commit()
+            return {"mensaje": f"Baja lógica aplicada (V1) al producto {id_producto}"}
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en la transacción SQL: {e}")
+    finally:
+        conn.close()
+
+@app.get("/v2/productos", dependencies=[Depends(verificar_token)])
+def obtener_productos_v2():
+    conn = obtener_conexion()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM KHC_Productos_Consultar();")
+            productos = cur.fetchall()
+            
+            # Traducción de la llave 'precio' a 'costo_unitario' para el contrato V2
+            for prod in productos:
+                prod["costo_unitario"] = prod.pop("precio")
+            return productos
+    finally:
+        conn.close()
+
+@app.post("/v2/productos", dependencies=[Depends(verificar_token)])
+def registrar_producto_v2(datos: ProductoAltaV2):
+    conn = obtener_conexion()
+    try:
+        with conn.cursor() as cur:
+            # Enviamos datos.costo_unitario al SP que espera el parámetro de precio
+            cur.execute("SELECT KHC_Productos_Alta(%s, %s);", (datos.descripcion, datos.costo_unitario))
+            id_generado = cur.fetchone()[0]
+            conn.commit()
+            return {"mensaje": "Producto registrado usando costo_unitario (V2)", "id_producto": id_generado}
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Error transaccional SQL: {e}")
+    finally:
+        conn.close()
+
+@app.patch("/v2/productos/{id_producto}", dependencies=[Depends(verificar_token)])
+def modificar_producto_v2(id_producto: int, datos: ProductoUpdateV2):
+    conn = obtener_conexion()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id_producto FROM productos WHERE id_producto = %s;", (id_producto,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Producto no encontrado.")
+            
+            # Mapeamos costo_unitario al SP
+            cur.execute(
+                "CALL KHC_Productos_Actualizar(%s, %s, %s, %s);", 
+                (id_producto, datos.descripcion, datos.costo_unitario, datos.activo)
+            )
+            conn.commit()
+            return {"mensaje": "Atributos actualizados correctamente (V2)"}
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en la transacción SQL: {e}")
+    finally:
+        conn.close()
+
+@app.delete("/v2/productos/{id_producto}", dependencies=[Depends(verificar_token)])
+def dar_baja_producto_v2(id_producto: int):
+    conn = obtener_conexion()

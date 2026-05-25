@@ -249,111 +249,169 @@ def dashboard_productos():
         tabla_prod.on('selection', actualizar_botones_prod)
         cargar_productos()
 
-@ui.page('/inventario')
-def dashboard_inventario():
+@ui.page('/productos')
+def dashboard_productos():
     auth = verificar_autenticacion()
     if auth: return auth
 
     headers = get_headers()
     menu_superior()
 
+    # Definición de columnas para ambas versiones
+    columnas_v1 = [
+        {'name': 'id', 'label': 'ID', 'field': 'id_producto', 'align': 'left'},
+        {'name': 'descripcion', 'label': 'Descripción', 'field': 'descripcion', 'align': 'left'},
+        {'name': 'precio', 'label': 'Precio Unitario (V1)', 'field': 'precio', 'align': 'right'},
+        {'name': 'activo', 'label': 'Estado', 'field': 'activo', 'align': 'center'}
+    ]
+
+    columnas_v2 = [
+        {'name': 'id', 'label': 'ID', 'field': 'id_producto', 'align': 'left'},
+        {'name': 'descripcion', 'label': 'Descripción', 'field': 'descripcion', 'align': 'left'},
+        {'name': 'costo', 'label': 'Costo Unitario (V2)', 'field': 'costo_unitario', 'align': 'right'},
+        {'name': 'activo', 'label': 'Estado', 'field': 'activo', 'align': 'center'}
+    ]
+
     with ui.column().classes('w-full max-w-5xl mx-auto p-6'):
-        # Se añade el botón de Alta directamente en la cabecera de esta vista
         with ui.row().classes('w-full justify-between items-center q-mb-md'):
-            ui.label('Control de Inventario').classes('text-h4 font-bold text-gray-800')
-            ui.button('Alta en Inventario', on_click=lambda: dialog_alta_inv.open(), icon='add_box').classes('bg-green-600 text-white')
+            ui.label('Catálogo de Productos').classes('text-h4 font-bold text-gray-800')
+            
+            with ui.row().classes('items-center gap-4'):
+                # Selector de versión para demostrar gobernabilidad en la UI
+                version_select = ui.select(
+                    options={'v1': 'Versión 1 (Precio)', 'v2': 'Versión 2 (Costo Unitario)'}, 
+                    value='v1',
+                    on_change=lambda e: alternar_version()
+                ).classes('w-48')
+                
+                ui.button('Nuevo Producto', on_click=lambda: dialog_crear_prod.open(), icon='add').classes('bg-green-600 text-white')
 
-        columnas_inv = [
-            {'name': 'id', 'label': 'ID Producto', 'field': 'id_producto', 'align': 'left'},
-            {'name': 'descripcion', 'label': 'Descripción', 'field': 'descripcion', 'align': 'left'},
-            {'name': 'stock', 'label': 'Stock Disponible', 'field': 'cantidad', 'align': 'right'}
-        ]
-        
-        tabla_inv = ui.table(columns=columnas_inv, rows=[], row_key='id_producto', selection='single').classes('w-full shadow-md')
+        # Inicializamos la tabla con las columnas de la V1 por defecto
+        tabla_prod = ui.table(columns=columnas_v1, rows=[], row_key='id_producto', selection='single').classes('w-full shadow-md')
 
-        def cargar_inventario():
+        def cargar_productos():
+            version = version_select.value  # Obtiene 'v1' o 'v2'
             try:
-                res = requests.get(f"{API_INVENTARIO}/inventario", headers=headers)
+                # Apunta dinámicamente al endpoint versionado correspondiente
+                res = requests.get(f"{API_PRODUCTOS}/{version}/productos", headers=headers)
                 if res.status_code == 200:
-                    tabla_inv.rows = res.json()
-                    tabla_inv.update()
+                    tabla_prod.rows = res.json()
+                    tabla_prod.update()
             except requests.exceptions.RequestException:
-                ui.notify('Error al obtener datos', color='negative')
+                ui.notify('Error de red al conectar con el servicio de productos', color='negative')
 
-        # --- LÓGICA DE ALTA EN INVENTARIO ---
-        with ui.dialog() as dialog_alta_inv, ui.card().classes('w-96'):
-            ui.label('Alta de Producto Inicial').classes('text-h6 font-bold')
-            a_desc = ui.input('Descripción').classes('w-full')
-            a_precio = ui.number('Precio Unitario', format='%.2f').classes('w-full')
-            a_stock = ui.number('Stock Inicial', format='%.0f').classes('w-full')
+        def alternar_version():
+            """Cambia la estructura de las columnas de la tabla según la versión seleccionada"""
+            if version_select.value == 'v2':
+                tabla_prod.columns = columnas_v2
+            else:
+                tabla_prod.columns = columnas_v1
+            tabla_prod.update()
+            cargar_productos()
 
-            def guardar_alta_inv():
-                datos_alta = {
-                    "descripcion": a_desc.value,
-                    "precio": float(a_precio.value) if a_precio.value else 0.0,
-                    "cantidad_inicial": int(a_stock.value) if a_stock.value else 0
-                }
+        # --- LÓGICA DE CREACIÓN (Mapeada según la versión activa) ---
+        with ui.dialog() as dialog_crear_prod, ui.card().classes('w-96'):
+            ui.label('Registrar Nuevo Producto').classes('text-h6 font-bold')
+            p_desc = ui.input('Descripción').classes('w-full')
+            p_valor = ui.number('Valor Monetario', format='%.2f').classes('w-full')
+            
+            def guardar_producto():
+                version = version_select.value
+                # Estructuramos el payload dinámicamente según el contrato de la versión activa
+                if version == 'v2':
+                    datos = {"descripcion": p_desc.value, "costo_unitario": float(p_valor.value)}
+                else:
+                    datos = {"descripcion": p_desc.value, "precio": float(p_valor.value)}
+                    
                 try:
-                    res = requests.post(f"{API_INVENTARIO}/inventario/alta", json=datos_alta, headers=headers)
+                    res = requests.post(f"{API_PRODUCTOS}/{version}/productos", json=datos, headers=headers)
                     if res.status_code == 200:
-                        ui.notify('Producto registrado en inventario', color='positive')
-                        dialog_alta_inv.close()
-                        cargar_inventario()
-                        # Limpiar formulario
-                        a_desc.value = ''
-                        a_precio.value = None
-                        a_stock.value = None
-                    else:
-                        ui.notify('Fallo de integridad en base de datos', color='negative')
-                except Exception:
+                        ui.notify(f'Registro exitoso en {version.upper()}', color='positive')
+                        dialog_crear_prod.close()
+                        cargar_productos()
+                        p_desc.value = ''
+                        p_valor.value = None
+                except requests.exceptions.RequestException:
                     ui.notify('Fallo de red', color='negative')
 
             with ui.row().classes('w-full justify-end q-mt-md'):
-                ui.button('Cancelar', on_click=dialog_alta_inv.close).props('flat')
-                ui.button('Guardar', on_click=guardar_alta_inv).classes('bg-blue-600')
+                ui.button('Cancelar', on_click=dialog_crear_prod.close).props('flat')
+                ui.button('Guardar', on_click=guardar_producto).classes('bg-blue-600')
 
-        # --- LÓGICA PARA SUMAR STOCK ---
+        # --- LÓGICA DE EDICIÓN Y ELIMINACIÓN (Versionadas) ---
         with ui.row().classes('w-full justify-start q-mt-md gap-4'):
-            btn_sumar_stock = ui.button('Añadir Stock', icon='inventory').classes('bg-blue-500').props('disable')
+            btn_editar_prod = ui.button('Editar Seleccionado', icon='edit').classes('bg-orange-500').props('disable')
+            btn_eliminar_prod = ui.button('Dar de Baja', icon='delete').classes('bg-red-600').props('disable')
 
-        with ui.dialog() as dialog_stock, ui.card().classes('w-96'):
-            ui.label('Ingreso de Mercancía').classes('text-h6 font-bold')
-            s_id = ui.label().classes('hidden')
-            s_cantidad = ui.number('Cantidad a sumar', value=1, format='%.0f').classes('w-full')
+        with ui.dialog() as dialog_editar_prod, ui.card().classes('w-96'):
+            ui.label('Editar Producto').classes('text-h6 font-bold')
+            e_id_prod = ui.label().classes('hidden')
+            e_desc = ui.input('Descripción').classes('w-full')
+            e_valor = ui.number('Valor Monetario', format='%.2f').classes('w-full')
+            e_activo = ui.checkbox('Producto Activo')
 
-            def aplicar_stock():
+            def aplicar_edicion_prod():
+                version = version_select.value
+                if version == 'v2':
+                    datos_nuevos = {"descripcion": e_desc.value, "costo_unitario": float(e_valor.value) if e_valor.value else 0.0, "activo": e_activo.value}
+                else:
+                    datos_nuevos = {"descripcion": e_desc.value, "precio": float(e_valor.value) if e_valor.value else 0.0, "activo": e_activo.value}
+                
                 try:
-                    res = requests.patch(f"{API_INVENTARIO}/inventario/{s_id.text}/agregar", json={"cantidad_a_sumar": int(s_cantidad.value)}, headers=headers)
+                    res = requests.patch(f"{API_PRODUCTOS}/{version}/productos/{e_id_prod.text}", json=datos_nuevos, headers=headers)
                     if res.status_code == 200:
-                        ui.notify('Stock actualizado', color='positive')
-                        dialog_stock.close()
-                        tabla_inv.selected.clear()
-                        btn_sumar_stock.props(add='disable')
-                        cargar_inventario()
+                        ui.notify('Actualización completada', color='positive')
+                        dialog_editar_prod.close()
+                        tabla_prod.selected.clear()
+                        actualizar_botones_prod()
+                        cargar_productos()
                 except Exception:
                     ui.notify('Error de red', color='negative')
 
             with ui.row().classes('w-full justify-end q-mt-md'):
-                ui.button('Cancelar', on_click=dialog_stock.close).props('flat')
-                ui.button('Confirmar', on_click=aplicar_stock).classes('bg-blue-600')
+                ui.button('Cancelar', on_click=dialog_editar_prod.close).props('flat')
+                ui.button('Actualizar', on_click=aplicar_edicion_prod).classes('bg-orange-500')
 
-        def abrir_modal_stock():
-            if tabla_inv.selected:
-                s_id.set_text(str(tabla_inv.selected[0]['id_producto']))
-                s_cantidad.value = 1
-                dialog_stock.open()
+        def abrir_edicion_prod():
+            if tabla_prod.selected:
+                prod = tabla_prod.selected[0]
+                version = version_select.value
+                e_id_prod.set_text(str(prod['id_producto']))
+                e_desc.value = prod['descripcion']
+                # Lee el campo correcto del diccionario según la versión activa en la UI
+                e_valor.value = prod['costo_unitario'] if version == 'v2' else prod['precio']
+                e_activo.value = prod['activo']
+                dialog_editar_prod.open()
 
-        btn_sumar_stock.on('click', abrir_modal_stock)
+        def ejecutar_baja_prod():
+            if tabla_prod.selected:
+                version = version_select.value
+                try:
+                    res = requests.delete(f"{API_PRODUCTOS}/{version}/productos/{tabla_prod.selected[0]['id_producto']}", headers=headers)
+                    if res.status_code == 200:
+                        ui.notify('Baja ejecutada', color='info')
+                        tabla_prod.selected.clear()
+                        actualizar_botones_prod()
+                        cargar_productos()
+                except Exception:
+                    ui.notify('Error en baja', color='negative')
 
-        def control_seleccion_inv():
-            if tabla_inv.selected:
-                btn_sumar_stock.props(remove='disable')
+        btn_editar_prod.on('click', abrir_edicion_prod)
+        btn_eliminar_prod.on('click', ejecutar_baja_prod)
+
+        def actualizar_botones_prod():
+            if tabla_prod.selected:
+                btn_editar_prod.props(remove='disable')
+                btn_eliminar_prod.props(remove='disable')
             else:
-                btn_sumar_stock.props(add='disable')
+                btn_editar_prod.props(add='disable')
+                btn_eliminar_prod.props(add='disable')
 
-        tabla_inv.on('selection', control_seleccion_inv)
-        cargar_inventario()
-
+        tabla_prod.on('selection', actualizar_botones_prod)
+        
+        # Carga inicial (V1 por defecto)
+        cargar_productos()
+        
 @ui.page('/')
 def dashboard_clientes():
     auth = verificar_autenticacion()
